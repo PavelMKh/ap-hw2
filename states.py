@@ -10,3 +10,6 @@ class Form(StatesGroup):
     goal = State()
     water = State()
 
+class Callories(StatesGroup):
+    food_callories = State()
+    food_weight = State()
