@@ -9,7 +9,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from states import Form, Callories
 from user_repository import UserRepository
 from user import User
-from service import calculate_caloric_goal, calculate_water_level, calculate_callories
+from service import calculate_caloric_goal, calculate_water_level, calculate_callories, CALORIES_PER_MINUTE, calculate_burned_callories
 from http_client import get_food_calories
 
 router = Router()
@@ -21,10 +21,12 @@ async def cmd_start(message: Message):
     text = (
         "Доступные команды:\n"
         "/start - Приветствие и начало работы с ботом.\n"
-        "/log_water <количество> - Записать количество выпитой воды в миллилитрах.\n"
-        "/show_profile - Посмотреть ваш профиль.\n"
         "/set_profile - Заполнить или изменить профиль.\n"
+        "/show_profile - Посмотреть ваш профиль.\n"
+        "/log_water <количество> - Записать количество выпитой воды в миллилитрах.\n"
         "/log_food <название продукта> - Записать количество съеденных каллорий.\n"
+        "/log_workout <тип тренировки> <время (мин)> - Записать тренировку\n"
+        "/check_progress - Показать прогресс"
     )
     await message.answer(text)
 
@@ -45,7 +47,10 @@ async def process_weight(message: types.Message, state: FSMContext):
     user_id = data['user_id']
     
     try:
-        height = float(message.text) 
+        height = float(message.text)
+        if height <= 0:
+            raise ValueError("Рост должен быть положительным числом.")
+        
         user_repository.get_user(user_id).update_data(height=height)
         await message.answer("Теперь введите ваш вес (в кг):")
         await state.set_state(Form.weight)
@@ -61,6 +66,9 @@ async def process_gender(message: types.Message, state: FSMContext):
     
     try:
         weight = float(message.text)
+        if weight <= 0:
+            raise ValueError("Вес должен быть положительным числом.")
+        
         user_repository.get_user(user_id).update_data(weight=weight)
 
         kb = [
@@ -71,7 +79,8 @@ async def process_gender(message: types.Message, state: FSMContext):
         keyboard = types.ReplyKeyboardMarkup(
             keyboard=kb,
             resize_keyboard=True,
-            input_field_placeholder="Выберите ваш пол")
+            input_field_placeholder="Выберите ваш пол"
+        )
 
         await message.answer("Теперь выберите ваш пол:", reply_markup=keyboard)
         await state.set_state(Form.gender)
@@ -112,16 +121,22 @@ async def process_activity(message: types.Message, state: FSMContext):
 
 
 @router.message(Form.activity)
-async def process_city(message: types.Message, state: FSMContext):
+async def process_activity(message: types.Message, state: FSMContext):
     data = await state.get_data()
     user_id = data['user_id']
     
-    activity = int(message.text)
-    
-    user_repository.get_user(user_id).update_data(activity=activity)
-    
-    await message.answer("Теперь введите ваш город:")
-    await state.set_state(Form.city)
+    try:
+        activity = int(message.text)
+        if activity < 0:
+            raise ValueError("Уровень активности не может быть отрицательным.")
+        
+        user_repository.get_user(user_id).update_data(activity=activity)
+        
+        await message.answer("Теперь введите ваш город:")
+        await state.set_state(Form.city)
+        
+    except ValueError:
+        await message.answer("Ошибка: Пожалуйста, введите корректное целое число для уровня активности.")
 
 
 @router.message(Form.city)
@@ -198,7 +213,6 @@ async def confirm_goal(message: types.Message, state: FSMContext):
 # Обработчик команды /show_profile
 @router.message(Command("show_profile"))
 async def process_show_profile(message: Message, state: FSMContext):
-    # Получаем текущего пользователя
     user = user_repository.get_current_user()
 
     if user is None:
@@ -308,4 +322,50 @@ async def process_callories(message: types.Message, state: FSMContext):
     await cmd_start(message)  
     await state.clear()
 
+# Обработчик команды /log_workout
+@router.message(Command("log_workout"))
+async def log_workout(message: types.Message):
+    args = message.text.split()
 
+    user = user_repository.get_current_user()
+    
+    if len(args) != 3:
+        await message.answer("Пожалуйста, используйте формат: /log_workout <тип тренировки> <длительность в минутах>")
+        return
+
+    workout_type = args[1].lower()
+    duration_minutes = int(args[2])
+
+    if workout_type not in CALORIES_PER_MINUTE:
+        await message.answer("Неизвестный тип тренировки. Пожалуйста, используйте один из следующих: " + ", ".join(CALORIES_PER_MINUTE.keys()))
+        return
+
+    calories_burned = calculate_burned_callories(workout_type, duration_minutes)
+    add_water = duration_minutes * 500 / 30
+
+    user.log_workout(calories_burned)
+    user.add_water(add_water)
+
+    await message.answer(
+        f"{workout_type.capitalize()} {duration_minutes} минут — {calories_burned} ккал.\n"
+        f"Дополнительно: выпейте {round(add_water)} мл воды."
+        )
+    
+
+# Обработчик команды /check_progress
+@router.message(Command("check_progress"))
+async def show_progress(message: types.Message):
+    user = user_repository.get_current_user()
+
+    progress_message = (
+        f"📊 Прогресс:\n"
+        f"Вода:\n"
+        f"- Выпито: {user.logged_water} мл из {user.water_goal} мл.\n"
+        f"- Осталось: {user.water_goal - user.logged_water} мл.\n"
+        f"\nКалории:\n"
+        f"- Потреблено: {user.logged_calories} ккал из {user.calorie_goal} ккал."
+        f"- Сожжено: {user.burned_calories} ккал.\n"
+        f"- Баланс: {user.calorie_goal - user.logged_calories + user.burned_calories} ккал.\n"
+    )
+
+    await message.answer(progress_message)

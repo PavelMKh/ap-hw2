@@ -40,6 +40,10 @@ class User:
         
         self.logged_water += amount
 
+    def add_water(self, amount: float):
+        """Добавляет количество воды к целе после тренировки."""
+        self.water_goal += amount
+
 
     def get_total_water(self) -> float:
         """Возвращает общее количество выпитой воды."""
@@ -59,6 +63,10 @@ class User:
     def get_total_calories(self) -> float:
         """Возвращает общее количество потребленных каллорий."""
         return self.logged_calories
+    
+    def log_workout(self, calories_burned: float) -> float:
+        """Записывает количество калорий, соженных во время тренировки"""
+        self.burned_calories += calories_burned
     
 
     def get_profile(self):

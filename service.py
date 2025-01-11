@@ -2,6 +2,18 @@ from user import User
 from http_client import get_weather
 from config import WEATHER_TOKEN
 
+CALORIES_PER_MINUTE = {
+    "бег": 10,        
+    "велосипед": 8,
+    "плавание": 7,
+    "йога": 4,
+    "силовая тренировка": 6,
+    "аэробика": 9,
+    "танцы": 7,
+    "ходьба": 4,
+    "кроссфит": 12
+}
+
 def calculate_bmr(user: User) -> float:
     """Расчет базового уровня метаболизма (BMR)"""
     weight = user.weight
@@ -24,9 +36,14 @@ def calculate_caloric_goal(user: User) -> float:
     return round(caloric_goal)
 
 
-def calculate_callories(callories: float, weight: float):
+def calculate_callories(callories: float, weight: float) -> float:
     """Расчет количества потребленных каллорий"""
     return callories * weight / 100
+
+
+def calculate_burned_callories(workout_type: str, duration_minutes: float) -> float:
+    """Расчет количества каллорий, соженных во время тренировки"""
+    return CALORIES_PER_MINUTE[workout_type] * duration_minutes
 
 
 async def calculate_water_level(user: User) -> float:
@@ -38,3 +55,4 @@ async def calculate_water_level(user: User) -> float:
         water_level += 500
 
     return water_level
+
