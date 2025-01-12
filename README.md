@@ -12,3 +12,4 @@
 ![alt text](log_workout.gif)
 ## 6. Команда /check_progress
 ![alt text](check_progress.gif)
+## 7. Подтверждение деплоя на render.com

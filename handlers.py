@@ -11,9 +11,11 @@ from user_repository import UserRepository
 from user import User
 from service import calculate_caloric_goal, calculate_water_level, calculate_callories, CALORIES_PER_MINUTE, calculate_burned_callories
 from http_client import get_food_calories
+from log_middleware import LoggingMiddleware
 
 router = Router()
 user_repository = UserRepository()
+router.message.middleware(LoggingMiddleware())
 
 # Обработчик команды /start
 @router.message(Command("start"))
@@ -271,7 +273,7 @@ async def log_food(message: Message, state: FSMContext):
     command_text = message.text.split()
 
     if len(command_text) != 2:
-        await message.answer("Пожалуйста, укажите название продукта. Например: /log_food чебурек")
+        await message.answer("Пожалуйста, укажите название продукта. Например: /log_food banana")
         return
     
     food_name = command_text[1]
