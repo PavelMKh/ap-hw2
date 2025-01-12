@@ -13,3 +13,6 @@
 ## 6. Команда /check_progress
 ![alt text](check_progress.gif)
 ## 7. Подтверждение деплоя на render.com
+![alt text](image.png)
+## 8. Подтверждение работы бота (логи)
+![alt text](image-1.png)
